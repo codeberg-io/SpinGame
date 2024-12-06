@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spin Game</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+    }
+
+    .wheel-container {
+      position: relative;
+      width: 300px;
+      height: 300px;
+    }
+
+    .wheel {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 8px solid #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: absolute;
+      top: 0;
+      left: 0;
+      background: conic-gradient(#ff6347 0deg 45deg,
+          #ffd700 45deg 90deg,
+          #90ee90 90deg 135deg,
+          #87cefa 135deg 180deg,
+          #ff6347 180deg 225deg,
+          #ffd700 225deg 270deg,
+          #90ee90 270deg 315deg,
+          #87cefa 315deg 360deg);
+    }
+
+    .pointer {
+      position: absolute;
+      bottom: -20px;
+      left: 50%;
+      transform: translateX(-50%) rotate(180deg);
+      width: 0;
+      height: 0;
+      border-left: 20px solid transparent;
+      border-right: 20px solid transparent;
+      border-top: 20px solid #333;
+    }
+
+    #spin-button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #4caf50;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    #spin-button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    #result {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+
+    .segment {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      font-size: 14px;
+      font-weight: bold;
+      transform-origin: 50% 50%;
+    }
+
+    .segment-label {
+      position: absolute;
+      top: 10%;
+      transform-origin: bottom;
+      transform: rotate(90deg);
+      /* Adjust rotation based on segment */
+    }
+  </style>
+</head>
+
+<body>
+  <p id="balanceTxt"></p>
+  <div class="wheel-container">
+    <div class="wheel" id="wheel">
+      <!-- Segment labels with adjusted positioning and rotation -->
+      <div class="segment" style="transform: rotate(22.5deg);">
+        <div class="segment-label" style="transform: rotate(-112.5deg);"> Try Again </div>
+      </div>
+      <div class="segment" style="transform: rotate(67.5deg);">
+        <div class="segment-label" style="transform: rotate(-112.5deg);"> N20 </div>
+      </div>
+      <div class="segment" style="transform: rotate(112.5deg);">
+        <div class="segment-label" style="transform: rotate(-112.5deg);"> N100 </div>
+      </div>
+      <div class="segment" style="transform: rotate(157.5deg);">
+        <div class="segment-label" style="transform: rotate(-112.5deg);"> N1000 </div>
+      </div>
+      <div class="segment" style="transform: rotate(202.5deg);">
+        <div class="segment-label" style="transform: rotate(-112.5deg);"> Try Again </div>
+      </div>
+      <div class="segment" style="transform: rotate(247.5deg);">
+        <div class="segment-label" style="transform: rotate(-112.5deg);"> N50 </div>
+      </div>
+      <div class="segment" style="transform: rotate(292.5deg);">
+        <div class="segment-label" style="transform: rotate(-112.5deg);"> N200 </div>
+      </div>
+      <div class="segment" style="transform: rotate(337.5deg);">
+        <div class="segment-label" style="transform: rotate(-112.5deg);"> N500 </div>
+      </div>
+    </div>
+    <div class="pointer"></div>
+  </div>
+  <button id="spin-button">Spin</button>
+  <div id="result"></div>
+
+  <script>
+    const wheel = document.getElementById("wheel");
+    const spinButton = document.getElementById("spin-button");
+    const resultDisplay = document.getElementById("result");
+    let token = '';
+    //Note: Replace “test-game” with name of the game as setup by the backend	
+    const playWinUri = "https://api.play2win.com.ng";
+    const gameUri = "/api/v1/games/test-game";
+    const deductUri = "/api/v1/games/test-game/deduct";
+    const creditUri = "/api/v1/users/credit-wallet";
+    const gameName = "test_game";
+
+    // Prizes on the wheel
+    const prizes = ["Try Again", "N1000", "N100", "N20", "Try Again", "N500", "N200", "N50"];
+
+    let isSpinning = false;
+
+    spinButton.addEventListener("click", () => {
+      if (isSpinning) return;
+      deductCredits(gameName, 100);
+      isSpinning = true;
+      spinButton.disabled = true;
+      resultDisplay.textContent = "Spinning...";
+
+      const randomIndex = Math.floor(Math.random() * prizes.length);
+      const degrees = (360 / prizes.length) * randomIndex + 3600; // Spins multiple times for effect
+
+      wheel.style.transition = "transform 3s ease-out";
+      wheel.style.transform = `rotate(${degrees}deg)`;
+
+      wheel.addEventListener("transitionend", () => {
+        wheel.style.transition = "none";
+        const finalRotation = degrees % 360;
+        wheel.style.transform = `rotate(${finalRotation}deg)`;
+
+        resultDisplay.textContent = `You won: ${prizes[randomIndex]}`;
+
+        if (prizes[randomIndex] == 'N1000') {
+          addCredits(1000);
+        } else if (prizes[randomIndex] == 'N500') {
+          addCredits(500);
+        } else if (prizes[randomIndex] == 'N200') {
+          addCredits(200);
+        } else if (prizes[randomIndex] == 'N100') {
+          addCredits(100);
+        } else if (prizes[randomIndex] == 'N50') {
+          addCredits(50);
+        } else if (prizes[randomIndex] == 'N20') {
+          addCredits(20);
+        }
+
+        isSpinning = false;
+        spinButton.disabled = false;
+      }, { once: true });
+    });
+
+
+    window.onload = function () {
+      // Get the full URL of the current page
+      const url = window.location.href;
+
+      // Split the URL at the "?" to extract the query string
+      const queryString = url.split("?")[1];
+
+      // If there's a query string, retrieve the token
+      if (queryString) {
+        token = queryString;
+        fetchTestGame();
+      } else {
+        alert("No query string found in the URL.");
+      }
+    };
+
+    async function deductCredits(game, amount) {
+      const apiUrl = `https://devapi.play2win.com.ng/api/v1/games/${game}/deduct?amount=${amount}`;
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status} - ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('Deduction successful:', data);
+        return data;
+      } catch (error) {
+        console.error('Error deducting credits:', error);
+      }
+    }
+
+    async function addCredits(amount) {
+      const apiUrl = `https://devapi.play2win.com.ng/api/v1/users/credit-wallet?amount=${amount}`;
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status} - ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('Credits added successfully:', data);
+        return data;
+      } catch (error) {
+        console.error('Error adding credits:', error);
+      }
+    }
+
+    async function fetchTestGame() {
+      try {
+        const response = await fetch('https://devapi.play2win.com.ng/api/v1/games/test_game', {
+          method: 'GET',
+          headers: {
+            'accept': 'application/json',
+            'Authorization': 'Bearer '+token
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        document.getElementById("balanceTxt").innerHTML='Balance:'+data.game_balance;
+        console.log(data);
+        return data;
+      } catch (error) {
+        console.error('There was a problem with the fetch operation:', error);
+      }
+    }
+
+  </script>
+</body>
+
+</html>
